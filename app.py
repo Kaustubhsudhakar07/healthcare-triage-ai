@@ -25,7 +25,7 @@ st.set_page_config(
     page_title="Pre-Hospital Criticality & Triage AI",
     page_icon="🚑",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # Custom CSS for Dark Mode / Glassmorphism Medical Dashboard
@@ -322,19 +322,6 @@ def main():
 
     agent = load_triage_agent()
 
-    # Sidebar: Optional Gemini API Key configuration
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("🤖 Triage AI Assistant")
-    gemini_key_input = st.sidebar.text_input(
-        "Google Gemini API Key (Optional)",
-        type="password",
-        value=os.environ.get("GEMINI_API_KEY", ""),
-        help="Provide your Gemini API key to enable live Generative AI synthesis. If left blank, grounded deterministic fallback synthesis will be used."
-    )
-    if gemini_key_input:
-        os.environ["GEMINI_API_KEY"] = gemini_key_input
-        agent.set_api_key(gemini_key_input)
-
     # Navigation Tabs
     tab_triage, tab_agent, tab_queue, tab_benchmarks, tab_drift, tab_about = st.tabs([
         "🩺 Live Field Patient Triage",
@@ -484,8 +471,28 @@ def main():
     # TAB 2: TRIAGE AI ASSISTANT
     # -------------------------------------------------------------
     with tab_agent:
-        st.subheader("🤖 Triage AI Decision-Support Assistant")
-        st.markdown("Conversational agent powered by **Google Gemini**, **Real ML What-If Sensitivity**, **SHAP attributions**, and **Chroma RAG** literature grounding.")
+        c_title, c_cfg = st.columns([2.8, 1.2], gap="medium")
+        with c_title:
+            st.subheader("🤖 Triage AI Decision-Support Assistant")
+            st.markdown("Conversational agent powered by **Google Gemini**, **Real ML What-If Sensitivity**, **SHAP attributions**, and **Chroma RAG**.")
+        with c_cfg:
+            with st.expander("⚙️ Gemini Key (Optional)", expanded=False):
+                gemini_key_input = st.text_input(
+                    "API Key",
+                    type="password",
+                    value=os.environ.get("GEMINI_API_KEY", ""),
+                    placeholder="Enter Gemini API Key...",
+                    help="Optional. If omitted, the agent uses grounded deterministic synthesis.",
+                    label_visibility="collapsed"
+                )
+                if gemini_key_input:
+                    os.environ["GEMINI_API_KEY"] = gemini_key_input
+                    agent.set_api_key(gemini_key_input)
+                
+                if os.environ.get("GEMINI_API_KEY"):
+                    st.caption("🟢 Live Gemini API Connected")
+                else:
+                    st.caption("⚪ Grounded Fallback Mode (Offline)")
 
         active_payload = st.session_state.get("current_patient_payload", PRESETS["Severe Cardiogenic Shock (Code 1)"])
         active_result = st.session_state.get("current_prediction_result")
@@ -580,8 +587,9 @@ def main():
 
             with st.chat_message("assistant"):
                 with st.spinner("Analyzing telemetry, running tools, and synthesizing grounded response..."):
-                    if gemini_key_input:
-                        agent.set_api_key(gemini_key_input)
+                    key = gemini_key_input or os.environ.get("GEMINI_API_KEY", "")
+                    if key:
+                        agent.set_api_key(key)
                     response = agent.answer_query(
                         query=query_to_run,
                         current_payload=active_payload,
