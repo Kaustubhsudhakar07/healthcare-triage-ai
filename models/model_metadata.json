@@ -1,0 +1,36 @@
+{
+  "model_type": "Tuned XGBoost Regressor with Clinical Pipeline",
+  "best_hyperparameters": {
+    "subsample": 0.75,
+    "n_estimators": 200,
+    "min_child_weight": 1,
+    "max_depth": 5,
+    "learning_rate": 0.1,
+    "gamma": 0.0,
+    "colsample_bytree": 0.75
+  },
+  "metrics_test": {
+    "MAE": 0.1651,
+    "RMSE": 0.2348,
+    "R2": 0.9935,
+    "Max_Error": 1.5,
+    "Accuracy_%": 90.5,
+    "Macro_F1": 0.8955,
+    "Weighted_F1": 0.9052,
+    "Critical_Recall_%": 96.08,
+    "High_Recall_%": 91.19,
+    "Under_Triage_%": 4.75,
+    "Severe_Under_Triage_%": 0.0,
+    "Over_Triage_%": 4.75
+  },
+  "urgency_categories": [
+    "Low",
+    "Moderate",
+    "Elevated",
+    "High",
+    "Critical"
+  ],
+  "feature_count": 25,
+  "target_variable": "criticality_score (continuous 1.0 - 10.0)",
+  "mapping": "Urgency Category mapped via physiological acuity intervals"
+}
