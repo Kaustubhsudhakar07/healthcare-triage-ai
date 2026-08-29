@@ -5,6 +5,14 @@ Interactive Streamlit Web Dashboard
 
 import os
 import sys
+
+# Safe SQLite3 fix for Streamlit Community Cloud (Linux)
+try:
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except (ImportError, KeyError):
+    pass
+
 import json
 import joblib
 import numpy as np
