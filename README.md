@@ -3,11 +3,13 @@
 [![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
 [![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-1.5.1-orange.svg)](https://scikit-learn.org/)
 [![XGBoost](https://img.shields.io/badge/XGBoost-2.1.0-red.svg)](https://xgboost.readthedocs.io/)
+[![Google Gemini](https://img.shields.io/badge/GenAI-Google%20Gemini-4285f4.svg)](https://ai.google.dev/)
+[![ChromaDB](https://img.shields.io/badge/RAG-ChromaDB-purple.svg)](https://www.trychroma.com/)
 [![SHAP](https://img.shields.io/badge/Explainability-SHAP-brightgreen.svg)](https://shap.readthedocs.io/)
 [![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-ff4b4b.svg)](https://streamlit.io/)
-[![Pytest](https://img.shields.io/badge/Testing-Pytest-yellow.svg)](https://pytest.org/)
+[![Pytest](https://img.shields.io/badge/Testing-33%20Passed-brightgreen.svg)](https://pytest.org/)
 
-An end-to-end Machine Learning Engineering pipeline and dark-themed interactive clinical decision-support system that predicts a standardized **Patient Criticality Score ($1.0 - 10.0$)** and maps it into a 5-tier **Operational Emergency Urgency Category (Low, Moderate, Elevated, High, Critical)** using pre-hospital vital signs, physical signs, and observable clinical symptoms.
+An end-to-end Machine Learning Engineering & Agentic AI decision-support platform that predicts a standardized **Patient Criticality Score ($1.0 - 10.0$)**, maps it into a 5-tier **Operational Emergency Urgency Category (Low, Moderate, Elevated, High, Critical)**, and integrates a conversational **Triage AI Agent** powered by Google Gemini, real ML what-if sensitivity analysis, and ChromaDB clinical literature grounding.
 
 ---
 
@@ -18,15 +20,17 @@ An end-to-end Machine Learning Engineering pipeline and dark-themed interactive 
 2. **Leakage-Free Clinical Pipeline:**
    - Encapsulated `scikit-learn` `Pipeline` with automated feature engineering (`Shock Index`, `Pulse Pressure`, `Hypoxia Flag`, `Coma Flag`, `Geriatric Risk`), robust scaling, and categorical one-hot encoding.
 3. **Rigorous Multi-Model Benchmarking:**
-   - Benchmarked across 8 model families with 5-Fold Cross Validation: Ridge, Decision Trees, Random Forests, Extra Trees, Gradient Boosting, XGBoost, LightGBM, and Stacking/Voting Ensembles.
-4. **Safety-First Error Analysis:**
-   - Zero severe under-triage failures ($0.0\%$) and high critical recall ($96.08\%$) on held-out test data ($N=2,000$).
-5. **Explainable AI (SHAP):**
-   - Local patient waterfall attributions and global feature importance charts translating model attributions into human-readable clinical narratives.
-6. **Hard Clinical Safety Guardrails:**
-   - Immediate physiological override alerts for airway risk ($GCS \le 8$), severe hypoxemia ($SpO_2 < 88\%$), and decompensated shock ($SBP < 85$ mmHg).
-7. **Interactive Command Center Web App:**
-   - Dark-mode glassmorphic Streamlit interface with quick clinical preset scenarios, real-time gauges, dispatch queue management, and batch CSV export.
+   - Benchmarked across 8 model families with 5-Fold Cross Validation: Tuned XGBoost ($R^2 = 0.9935$, $\text{MAE} = 0.1651$, accuracy $90.50\%$, severe under-triage $0.00\%$).
+4. **Agentic Triage AI Assistant (Google Gemini):**
+   - Single primary agent with 7 controlled tools answering clinical questions, explaining SHAP attribution factors, running real ML what-if sensitivity analyses, and explaining system architecture.
+5. **Real ML What-If Sensitivity Engine:**
+   - Executes true sensitivity analysis: modifies only the requested parameter in the current patient payload and re-runs the **real** trained XGBoost pipeline, reporting exact mathematical deltas. The LLM never hallucinates numbers.
+6. **ChromaDB Clinical Literature RAG:**
+   - Vector store indexing authoritative guidelines from NIH (StatPearls), WHO, CDC, and NHS (NEWS2) with verified citations.
+7. **Clinical Safety Guardrails:**
+   - Pre-screen regex filters refusing diagnosis, medication prescriptions, and advice to bypass emergency care, with adversarial prompt injection resistance.
+8. **Interactive Command Center Web App (6 Tabs):**
+   - Live Triage Console, Triage AI Assistant, Inbound Ambulance Queue, Model Benchmarks, Real-Time Data Drift Monitor, and Clinical Scope.
 
 ---
 

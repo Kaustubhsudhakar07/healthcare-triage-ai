@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.abspath("."))
 from src.predict import ClinicalInferenceService, PatientPayload
 from src.preprocessing import score_to_urgency_tier, clip_criticality_scores, URGENCY_ORDER
 from src.monitoring import ClinicalDriftMonitor, calculate_psi
+from src.agent.agent import TriageAIAgent
 
 # Page configuration
 st.set_page_config(
@@ -308,16 +309,36 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Initialize service
+    # Initialize services
     try:
         service = load_inference_service()
     except Exception as e:
         st.error(f"Failed to load clinical inference service: {e}")
         st.stop()
-        
+
+    @st.cache_resource
+    def load_triage_agent():
+        return TriageAIAgent()
+
+    agent = load_triage_agent()
+
+    # Sidebar: Optional Gemini API Key configuration
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🤖 Triage AI Assistant")
+    gemini_key_input = st.sidebar.text_input(
+        "Google Gemini API Key (Optional)",
+        type="password",
+        value=os.environ.get("GEMINI_API_KEY", ""),
+        help="Provide your Gemini API key to enable live Generative AI synthesis. If left blank, grounded deterministic fallback synthesis will be used."
+    )
+    if gemini_key_input:
+        os.environ["GEMINI_API_KEY"] = gemini_key_input
+        agent.set_api_key(gemini_key_input)
+
     # Navigation Tabs
-    tab_triage, tab_queue, tab_benchmarks, tab_drift, tab_about = st.tabs([
+    tab_triage, tab_agent, tab_queue, tab_benchmarks, tab_drift, tab_about = st.tabs([
         "🩺 Live Field Patient Triage",
+        "🤖 Triage AI Assistant",
         "📋 Dispatch & Ambulance Queue",
         "📊 Model Benchmarks & Safety Audits",
         "📡 Real-Time Drift & Telemetry Monitor",
@@ -408,6 +429,8 @@ def main():
             # Run prediction
             try:
                 result = service.predict(payload)
+                st.session_state["current_patient_payload"] = payload
+                st.session_state["current_prediction_result"] = result
             except Exception as ex:
                 st.error(f"Inference error: {ex}")
                 st.stop()
@@ -458,7 +481,132 @@ def main():
                         st.markdown(f"- {narr}")
 
     # -------------------------------------------------------------
-    # TAB 2: DISPATCH & AMBULANCE QUEUE
+    # TAB 2: TRIAGE AI ASSISTANT
+    # -------------------------------------------------------------
+    with tab_agent:
+        st.subheader("🤖 Triage AI Decision-Support Assistant")
+        st.markdown("Conversational agent powered by **Google Gemini**, **Real ML What-If Sensitivity**, **SHAP attributions**, and **Chroma RAG** literature grounding.")
+
+        active_payload = st.session_state.get("current_patient_payload", PRESETS["Severe Cardiogenic Shock (Code 1)"])
+        active_result = st.session_state.get("current_prediction_result")
+        if not active_result:
+            active_result = service.predict(active_payload)
+
+        score = active_result.get("criticality_score", 5.0)
+        tier = active_result.get("urgency_tier", "Moderate")
+        tier_color = {"Low": "#2ecc71", "Moderate": "#f1c40f", "Elevated": "#e67e22", "High": "#e74c3c", "Critical": "#9b59b6"}.get(tier, "#3498db")
+
+        # Current Patient Assessment Card
+        st.markdown(f"""
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;">Active Patient Assessment</span>
+                    <h3 style="margin: 4px 0; color: #f8fafc;">{active_payload.get('age', 50)}-year-old {active_payload.get('sex', 'Patient')} ({('Ambulance Arrival' if active_payload.get('ambulance_arrival') else 'Walk-in')})</h3>
+                    <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0;">
+                        HR: <b>{active_payload.get('heart_rate', 80):.0f}</b> bpm | BP: <b>{active_payload.get('systolic_bp', 120):.0f}/{active_payload.get('diastolic_bp', 80):.0f}</b> | SpO2: <b>{active_payload.get('spo2', 98):.0f}%</b> | GCS: <b>{active_payload.get('gcs', 15)}/15</b> | RR: <b>{active_payload.get('respiratory_rate', 16):.0f}</b>
+                    </p>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 1.8rem; font-weight: 800; color: {tier_color};">{score:.1f} <span style="font-size: 1.1rem; color: #94a3b8;">/ 10</span></div>
+                    <span style="background: {tier_color}33; color: {tier_color}; border: 1px solid {tier_color}; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 0.8rem;">{tier.upper()}</span>
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Model: Tuned XGBoost Pipeline</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Suggested Questions (Clickable chips)
+        st.markdown("##### 💡 Suggested Questions (Click to Send):")
+        s_col1, s_col2, s_col3, s_col4 = st.columns(4)
+        with s_col1:
+            if st.button("❓ Why is this patient high risk?", key="sq_high", use_container_width=True):
+                st.session_state["queued_user_query"] = "Why is this patient high risk?"
+        with s_col2:
+            if st.button("📊 Explain SHAP results", key="sq_shap", use_container_width=True):
+                st.session_state["queued_user_query"] = "Explain the SHAP results"
+        with s_col3:
+            if st.button("🔄 What if SpO2 = 95%?", key="sq_whatif", use_container_width=True):
+                st.session_state["queued_user_query"] = "What if SpO2 changes to 95%?"
+        with s_col4:
+            if st.button("📖 What does GCS mean?", key="sq_gcs", use_container_width=True):
+                st.session_state["queued_user_query"] = "What does GCS mean?"
+
+        s_col5, s_col6, s_col7 = st.columns(3)
+        with s_col5:
+            if st.button("🎯 How reliable is this prediction?", key="sq_rel", use_container_width=True):
+                st.session_state["queued_user_query"] = "How reliable is this prediction?"
+        with s_col6:
+            if st.button("⚙️ Why was XGBoost chosen?", key="sq_xgb", use_container_width=True):
+                st.session_state["queued_user_query"] = "Why did you choose XGBoost for this system?"
+        with s_col7:
+            if st.button("⚠️ What are model limitations?", key="sq_lim", use_container_width=True):
+                st.session_state["queued_user_query"] = "What are the limitations of the model?"
+
+        # Chat history container
+        if "triage_chat_messages" not in st.session_state:
+            st.session_state["triage_chat_messages"] = [
+                {
+                    "role": "assistant",
+                    "content": f"Hello! I am your **Triage AI Assistant**. I can analyze the active patient's vitals (Criticality: **{score:.1f}/10**, Tier: **{tier}**), explain SHAP factors, run real ML what-if simulations, and query clinical literature. How can I help you?",
+                    "tool_activity": ["Session Initialized: Triage AI Agent Ready"],
+                    "sources": []
+                }
+            ]
+
+        st.markdown("---")
+        st.markdown("##### 💬 Clinical Triage Dialogue")
+
+        for msg in st.session_state["triage_chat_messages"]:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+                if msg.get("tool_activity"):
+                    with st.expander("🔎 AI Tool Activity", expanded=False):
+                        for step in msg["tool_activity"]:
+                            st.code(step, language="text")
+                if msg.get("sources"):
+                    st.markdown("**📚 Retrieved Authoritative Citations:**")
+                    for src in msg["sources"]:
+                        st.markdown(f"- **{src.get('title')}**: *{src.get('source')}* ({src.get('authority')})")
+
+        # Chat Input
+        user_input = st.chat_input("Ask a clinical, what-if, or architectural question...")
+        query_to_run = user_input or st.session_state.pop("queued_user_query", None)
+
+        if query_to_run:
+            st.session_state["triage_chat_messages"].append({"role": "user", "content": query_to_run})
+            with st.chat_message("user"):
+                st.markdown(query_to_run)
+
+            with st.chat_message("assistant"):
+                with st.spinner("Analyzing telemetry, running tools, and synthesizing grounded response..."):
+                    if gemini_key_input:
+                        agent.set_api_key(gemini_key_input)
+                    response = agent.answer_query(
+                        query=query_to_run,
+                        current_payload=active_payload,
+                        current_prediction=active_result
+                    )
+                    st.markdown(response["answer"])
+                    if response.get("tool_activity"):
+                        with st.expander("🔎 AI Tool Activity", expanded=True):
+                            for step in response["tool_activity"]:
+                                st.code(step, language="text")
+                    if response.get("sources"):
+                        st.markdown("**📚 Retrieved Authoritative Citations:**")
+                        for src in response["sources"]:
+                            st.markdown(f"- **{src.get('title')}**: *{src.get('source')}* ({src.get('authority')})")
+
+            st.session_state["triage_chat_messages"].append({
+                "role": "assistant",
+                "content": response["answer"],
+                "tool_activity": response.get("tool_activity", []),
+                "sources": response.get("sources", [])
+            })
+            st.rerun()
+
+    # -------------------------------------------------------------
+    # TAB 3: DISPATCH & AMBULANCE QUEUE
     # -------------------------------------------------------------
     with tab_queue:
         st.subheader("🚑 Active Inbound Emergency Transit Queue")

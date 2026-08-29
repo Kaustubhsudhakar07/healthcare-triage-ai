@@ -12,8 +12,10 @@ This guide provides complete, step-by-step production deployment instructions fo
 # Build the production Docker image
 docker build -t prehospital-triage-ai:latest .
 
-# Run the Streamlit Web Application container
-docker run -d -p 8501:8501 --name triage-streamlit prehospital-triage-ai:latest
+# Run the Streamlit Web Application container with Gemini API Key
+docker run -d -p 8501:8501 \
+    -e GEMINI_API_KEY="your-gemini-api-key" \
+    --name triage-streamlit prehospital-triage-ai:latest
 
 # Or run the FastAPI RESTful Microservice
 docker run -d -p 8000:8000 --name triage-api prehospital-triage-ai:latest \

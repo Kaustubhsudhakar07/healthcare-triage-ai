@@ -10,6 +10,8 @@ __pycache__/
 env/
 venv/
 ENV/
+scratch/
+models/chroma_db/
 
 # Testing & Coverage
 .pytest_cache/

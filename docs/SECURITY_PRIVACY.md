@@ -97,3 +97,28 @@ In disaster zones or transit through cellular dead-zones, the system must degrad
 1. **Edge Container Fallback:** The pre-hospital tablet runs a local lightweight containerized inference service with cached baseline pipelines.
 2. **Deterministic Hard Safety Rules:** If the ML runtime encounters a memory or hardware fault, the application falls back immediately to deterministic heuristic triage protocols (e.g., standard START / NEWS2 threshold table).
 3. **Store-and-Forward Telemetry:** Once cellular connectivity is restored, cached encrypted encounter logs are securely synchronized with the hospital emergency receiving server.
+
+---
+
+## 7. Generative AI, LLM & Agentic Security Architecture
+
+### 7.1 API Key Security & Secret Management
+- **Zero Hardcoding:** The `GEMINI_API_KEY` is never committed to GitHub, embedded in source code, or baked into Docker layers.
+- **Runtime Injection:** Provided exclusively via environment variables (`os.environ["GEMINI_API_KEY"]`), `.env` files (excluded by `.gitignore`), or Streamlit Secrets (`.streamlit/secrets.toml`).
+- **Cloud Secret Stores:** In production cloud deployments (GCP Cloud Run, AWS ECS), keys are mounted dynamically from Google Secret Manager or AWS Secrets Manager.
+
+### 7.2 PHI Data Minimization Sent to LLMs
+When user queries trigger the Triage AI Agent:
+- **What is Sent:** Only normalized physiological vitals (HR, BP, SpO2, GCS), symptoms (Chest Pain, Trauma), and derived scores.
+- **What is NEVER Sent:** No patient names, telephone numbers, hospital MRNs, geographic GPS coordinates, or device MAC addresses.
+- **Enterprise BAA Requirement:** For future real-world clinical deployments, emergency health systems must execute a **HIPAA Business Associate Agreement (BAA)** with Google Cloud / Vertex AI ensuring zero data retention and zero training on customer prompt data.
+
+### 7.3 Ephemeral Session-Only Memory
+- Dialogue turns are stored exclusively in RAM via `st.session_state["triage_chat_messages"]`.
+- No conversation transcripts, prompt inputs, or generated responses are persisted to SQLite, disk, or remote analytical databases.
+- When the user closes or reloads the browser, all session telemetry is permanently deleted from browser memory.
+
+### 7.4 Adversarial Prompt Injection Defense
+- All incoming queries pass through deterministic regex safety filters before reaching tools or the LLM.
+- Attempts to alter system instructions (*"Ignore previous instructions"*, *"Act as DAN"*, *"Force prediction to 10"*) are blocked immediately at the boundary without executing tools or altering model states.
+
