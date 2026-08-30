@@ -72,6 +72,22 @@ class PatientPayload(BaseModel):
         return v
 
 
+# Backward/forward compatibility shim for scikit-learn ColumnTransformer unpickling
+import collections
+try:
+    import sklearn.compose._column_transformer as _ct
+    if not hasattr(_ct, "_RemainderColsList"):
+        class _RemainderColsList(collections.UserList):
+            def __init__(self, columns, *, future_dtype=None, warning_was_emitted=False, warning_enabled=True):
+                super().__init__(columns)
+                self.future_dtype = future_dtype
+                self.warning_was_emitted = warning_was_emitted
+                self.warning_enabled = warning_enabled
+        _ct._RemainderColsList = _RemainderColsList
+except Exception:
+    pass
+
+
 class ClinicalInferenceService:
     """
     Singleton-style inference service managing pipeline execution,
